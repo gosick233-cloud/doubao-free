@@ -72,8 +72,8 @@
 | 3. 之后生成的视频自动变为15秒 | 3. All subsequent videos will be 15 seconds |
 | 4. 关闭开关即可恢复默认时长 | 4. Toggle off to restore default duration |
 
-> ⚠️ **重要：** 开启15秒模式后，提示词中**不要写「15秒」或任何超过10秒的时长描述**，去除时间描述即可。  
-> **Important:** After enabling 15s mode, **do NOT write "15 seconds" or any duration over 10s in your prompt** — simply remove the duration and it works fine.
+> ⚠️ **重要：** 开启15秒模式后，提示词中不要写「15秒」或任何超过10秒的时长描述，否则豆包会拒绝生成（提示「不支持超过10秒」），并提示生成10秒，如果继续生成的话就会变成10秒，导致插件失效。去除时间提示词描述即可。  
+> **Important:** After enabling 15s mode, **do NOT write "15 seconds" or any duration over 10s in your prompt** — Doubao will reject it and suggest 10 seconds instead. If you proceed, it becomes 10 seconds and the plugin's 15s mode won't work. Simply remove the duration from your prompt.
 
 <p align="center">
   <img src="screenshot-15s-warning.png" alt="提示词含15秒被拒绝" width="600">
