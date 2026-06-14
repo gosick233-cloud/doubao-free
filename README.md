@@ -3,6 +3,9 @@
 > **中文:** 豆包视频/图片无水印下载 + 解锁15秒视频生成 · 开源免费 · 纯净无验证  
 > **English:** Watermark-free download and 15-second video unlock for Doubao · Open-source, free, no verification
 
+> ⚠️ **注意：** 视频生成仅在「新对话」中可用，侧边栏「AI 创作」页面不支持视频生成。
+> **Note:** Video generation only works under "New Conversation". The "AI Creation" sidebar page does NOT support video generation.
+
 <p align="center">
   <img src="screenshot.png" alt="豆包自由版" width="360">
 </p>
