@@ -44,7 +44,7 @@
 | 2 | **打开浏览器扩展管理页** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` | **Open the extension management page** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` |
 | 3 | **开启右上角「开发人员模式」** | **Enable "Developer mode"** (top right) |
 | 4 | **点击「加载已解压的扩展」**，选择本插件文件夹 | **Click "Load unpacked"** and select the plugin folder |
-| 5 | **安装完成**，工具栏出现「自」字图标 | **Done!** The "自" icon appears in your toolbar |
+| 5 | **安装完成**，工具栏出现蓝色方块图标 | **Done!** A blue square icon appears in your toolbar |
 
 ---
 
@@ -63,7 +63,7 @@
 
 | 中文 | English |
 |---|---|
-| 1. 点击工具栏「自」字图标打开弹窗 | 1. Click the "自" icon in the toolbar |
+| 1. 点击工具栏蓝色方块图标打开弹窗 | 1. Click the blue square icon in the toolbar |
 | 2. 打开 **「15秒视频模式」** 开关 | 2. Toggle **"15s Video Mode"** on |
 | 3. 之后生成的视频自动变为15秒 | 3. All subsequent videos will be 15 seconds |
 | 4. 关闭开关即可恢复默认时长 | 4. Toggle off to restore default duration |
