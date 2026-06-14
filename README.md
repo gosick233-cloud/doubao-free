@@ -46,7 +46,7 @@
 |---|---|---|
 | 1 | **下载本插件文件夹**，放在一个**不要移动**的位置 | **Download the plugin folder** and keep it in a **permanent location** |
 | 2 | **打开浏览器扩展管理页** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` | **Open the extension management page** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` |
-| 3 | **开启右上角「开发人员模式」** | **Enable "Developer mode"** (top right) |
+| 3 | **开启「开发人员模式」** | **Enable "Developer mode"** (top right) |
 | 4 | **点击「加载已解压的扩展」**，选择本插件文件夹 | **Click "Load unpacked"** and select the plugin folder |
 | 5 | **安装完成**，工具栏出现蓝色方块图标 | **Done!** A blue square icon appears in your toolbar |
 
