@@ -1,92 +1,103 @@
-# 豆包自由版
+# 豆包自由版 / Doubao Free
 
-> 豆包视频/图片无水印下载 + 解锁15秒视频生成  
-> 开源免费 · 纯净无验证 · 无需任何激活码
+> **中文:** 豆包视频/图片无水印下载 + 解锁15秒视频生成 · 开源免费 · 纯净无验证  
+> **English:** Watermark-free download and 15-second video unlock for Doubao · Open-source, free, no verification
 
 ---
 
-## 功能
+## 功能 / Features
 
-| 功能 | 说明 |
+| 中文 | English |
 |---|---|
-| ✅ **图片无水印下载** | 豆包生成图片后，右下角出现「下载原图」按钮，一键保存无水印PNG |
-| ✅ **视频无水印下载** | 视频块上出现「下载视频」按钮，一键下载无水印MP4 |
-| ✅ **15秒视频生成** | 开启「15秒模式」后，豆包视频时长自动提升至15秒（原限制10秒） |
-| ✅ **无任何付费验证** | 无卡密、无会员、无后门，加载即用 |
+| ✅ **图片无水印下载** — 一键保存无水印原图 | ✅ **Watermark-free image download** — Save original images with one click |
+| ✅ **视频无水印下载** — 一键下载无水印MP4 | ✅ **Watermark-free video download** — Download clean MP4 videos |
+| ✅ **15秒视频生成** — 豆包默认限10秒，本插件解锁至15秒 | ✅ **15-second video** — Doubao limits to 10s; this plugin unlocks 15s |
+| ✅ **无任何付费验证** — 无卡密、无会员、无后门 | ✅ **No payment or verification** — No license keys, no paywall, no backdoor |
 
 ---
 
-## 原理
+## 原理 / How It Works
 
-**去水印** — 豆包后端实际已返回无水印的图片/视频URL，只是前端展示时加了水印层。本插件通过劫持 `JSON.parse` 和网络请求，提取原始无水印地址并直接在页面上提供下载入口。
+### 去水印 / Watermark Removal
+**中文:** 豆包后端实际已返回无水印的图片/视频URL，只是前端展示时加了水印层。本插件劫持 `JSON.parse` 和网络请求，提取原始无水印地址，直接在页面上提供下载入口。
 
-**15秒** — Seedance 2.0 模型原生支持 4~15秒视频生成，豆包App在前端UI上仅开放了5秒和10秒选项。本插件拦截视频生成请求，将 `duration` 参数修改为15，让后端模型生成完整15秒视频。
+**English:** Doubao's backend already returns watermark-free image/video URLs — the watermark is only a front-end overlay. This plugin hooks `JSON.parse` and network requests to extract the original clean URLs and provides download buttons directly on the page.
 
----
+### 15秒 / 15-Second Video
+**中文:** Seedance 2.0 模型原生支持 4~15秒视频生成，豆包在前端 UI 上仅开放了 5秒和10秒选项。本插件拦截视频生成请求，修改 `duration` 参数为 15，让后端模型生成完整 15秒视频。
 
-## 安装
-
-### 前置条件
-- Chrome 或 Edge 浏览器
-
-### 安装步骤
-
-1. **下载本插件文件夹**，放在一个**不要移动**的位置（如 `H:/OH-WorkSpace/doubao-free/`）
-
-2. **打开浏览器扩展管理页**
-   - Chrome: 地址栏输入 `chrome://extensions/`
-   - Edge: 地址栏输入 `edge://extensions/`
-
-3. **开启右上角「开发人员模式」开关**
-
-4. **点击「加载已解压的扩展」**，选择本插件文件夹
-
-5. **安装完成**，工具栏会出现「自」字图标
+**English:** The Seedance 2.0 model natively supports 4–15 second video generation, but Doubao's UI only exposes 5s and 10s options. This plugin intercepts video generation requests, patches the `duration` parameter to 15, and lets the backend produce the full 15-second output.
 
 ---
 
-## 使用
+## 安装 / Installation
 
-### 下载无水印图片/视频
-1. 打开 [doubao.com](https://www.doubao.com/)
-2. 正常使用豆包生成图片或视频
-3. 图片右下角出现 **「下载原图」** 按钮，点击即可保存
-4. 视频块上出现 **「下载视频」** 按钮，点击即可保存
+### 前置条件 / Prerequisites
+- **中文:** Chrome 或 Edge 浏览器
+- **English:** Chrome or Edge browser
 
-### 开启15秒模式
-1. 点击浏览器工具栏的「自」字图标打开弹窗
-2. 打开 **「15秒视频模式」** 开关
-3. 之后生成的视频时长自动变为15秒（弹窗会显示「15秒模式·已启用」）
-4. 不需要时关闭开关即可恢复默认时长
+### 安装步骤 / Steps
+
+| # | 中文 | English |
+|---|---|---|
+| 1 | **下载本插件文件夹**，放在一个**不要移动**的位置 | **Download the plugin folder** and keep it in a **permanent location** |
+| 2 | **打开浏览器扩展管理页** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` | **Open the extension management page** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` |
+| 3 | **开启右上角「开发人员模式」** | **Enable "Developer mode"** (top right) |
+| 4 | **点击「加载已解压的扩展」**，选择本插件文件夹 | **Click "Load unpacked"** and select the plugin folder |
+| 5 | **安装完成**，工具栏出现「自」字图标 | **Done!** The "自" icon appears in your toolbar |
 
 ---
 
-## 文件结构
+## 使用 / Usage
+
+### 下载无水印图片/视频 / Download Without Watermarks
+
+| 中文 | English |
+|---|---|
+| 1. 打开 [doubao.com](https://www.doubao.com/) | 1. Open [doubao.com](https://www.doubao.com/) |
+| 2. 正常使用豆包生成图片或视频 | 2. Generate images or videos as usual |
+| 3. 图片右下角出现 **「下载原图」** 按钮，点击保存 | 3. A **"Download"** button appears on images — click to save |
+| 4. 视频块上出现 **「下载视频」** 按钮，点击保存 | 4. A **"Download"** button appears on videos — click to save |
+
+### 开启15秒模式 / Enable 15s Mode
+
+| 中文 | English |
+|---|---|
+| 1. 点击工具栏「自」字图标打开弹窗 | 1. Click the "自" icon in the toolbar |
+| 2. 打开 **「15秒视频模式」** 开关 | 2. Toggle **"15s Video Mode"** on |
+| 3. 之后生成的视频自动变为15秒 | 3. All subsequent videos will be 15 seconds |
+| 4. 关闭开关即可恢复默认时长 | 4. Toggle off to restore default duration |
+
+---
+
+## 文件结构 / File Structure
 
 ```
 doubao-free/
-├── manifest.json    # 扩展配置
-├── content.js       # 核心逻辑（注入到豆包页面）
-├── forwarder.js     # 消息桥接（MAIN ↔ Service Worker）
-├── background.js    # 后台服务（处理下载）
-├── popup.html       # 弹窗页面
-├── popup.js         # 弹窗逻辑
-├── popup.css        # 弹窗样式
-├── icon.png         # 图标
-└── README.md        # 本文件
+├── manifest.json    # 扩展配置 / Extension manifest
+├── content.js       # 核心逻辑（注入豆包页面） / Core logic (injected into Doubao)
+├── forwarder.js     # 消息桥接 / Message bridge (MAIN ↔ Service Worker)
+├── background.js    # 后台服务（下载处理） / Background service (downloads)
+├── popup.html       # 弹窗页面 / Popup page
+├── popup.js         # 弹窗逻辑 / Popup logic
+├── popup.css        # 弹窗样式 / Popup styles
+├── icon.png         # 图标 / Icon
+└── README.md        # 本文件 / This file
 ```
 
 ---
 
-## 注意事项
+## 注意事项 / Notes
 
-- 安装后插件文件夹**不要删除或移动**，否则扩展会失效
-- 如果扩展失效，在 `chrome://extensions/` 中点一下刷新按钮重新加载
-- 视频下载需要保持豆包账号登录状态
-- 如豆包平台更新接口导致功能异常，请提交 Issue
+| 中文 | English |
+|---|---|
+| 安装后文件夹**不要删除或移动**，否则扩展会失效 | Do **not** delete or move the folder after installation, or the extension will break |
+| 失效时在 `chrome://extensions/` 点刷新按钮重载 | If it stops working, click the refresh button in `chrome://extensions/` |
+| 视频下载需要保持豆包账号**登录状态** | You must be **logged in** to Doubao for video downloads |
+| 如豆包更新接口导致异常，请提交 Issue | If Doubao's API changes break functionality, please open an Issue |
 
 ---
 
-## 许可证
+## 许可证 / License
 
-MIT License — 自由使用、修改、分发。
+MIT License — 自由使用、修改、分发 / Free to use, modify, and distribute.
