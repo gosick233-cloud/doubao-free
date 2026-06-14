@@ -48,7 +48,7 @@
 | 2 | **打开浏览器扩展管理页** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` | **Open the extension management page** — Chrome: `chrome://extensions/` · Edge: `edge://extensions/` |
 | 3 | **开启「开发人员模式」** | **Enable "Developer mode"** (top right) |
 | 4 | **点击「加载已解压的扩展」**，选择本插件文件夹 | **Click "Load unpacked"** and select the plugin folder |
-| 5 | **安装完成**，工具栏出现蓝色方块图标 | **Done!** A blue square icon appears in your toolbar |
+| 5 | **重启浏览器**，工具栏出现蓝色方块图标 | **Restart your browser** — a blue square icon appears in your toolbar |
 
 ---
 
@@ -95,7 +95,7 @@ doubao-free/
 
 | 中文 | English |
 |---|---|
-| 安装后文件夹**不要删除或移动**，否则扩展会失效 | Do **not** delete or move the folder after installation, or the extension will break |
+| 安装后**重启浏览器**生效。文件夹**不要删除或移动**，否则扩展会失效 | **Restart your browser** after installation. Do **not** delete or move the folder, or the extension will break |
 | 失效时在 `chrome://extensions/` 点刷新按钮重载 | If it stops working, click the refresh button in `chrome://extensions/` |
 | 视频下载需要保持豆包账号**登录状态** | You must be **logged in** to Doubao for video downloads |
 | 如豆包更新接口导致异常，请提交 Issue | If Doubao's API changes break functionality, please open an Issue |
