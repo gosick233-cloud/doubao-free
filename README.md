@@ -3,6 +3,10 @@
 > **中文:** 豆包视频/图片无水印下载 + 解锁15秒视频生成 · 开源免费 · 纯净无验证  
 > **English:** Watermark-free download and 15-second video unlock for Doubao · Open-source, free, no verification
 
+<p align="center">
+  <img src="screenshot.png" alt="豆包自由版" width="360">
+</p>
+
 ---
 
 ## 功能 / Features
