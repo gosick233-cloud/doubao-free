@@ -368,26 +368,17 @@ function ensureRelative(el) {
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
 }
 
-// 找到还没加过按钮的图片容器（跳过已有按钮的）
-function findUninjectedImageContainers() {
-  const containers = []
-  document.querySelectorAll('source[srcset*="signature"], img[src*="signature"]').forEach(el => {
-    let p = el.parentElement
-    for (let i = 0; i < 3 && p && p !== document.body; i++, p = p.parentElement) {
-      if (p.offsetWidth < 80 || p.offsetHeight < 80 || p.offsetWidth > 500) continue
-      if (containers.includes(p)) break
-      // 跳过已经有按钮的容器
-      if (p.querySelector('.__df-btn')) break
-      containers.push(p)
-      break
+// 通过 URL 签名在 imageDb 中查找匹配的 key
+function findKeyByUrlSignature(url) {
+  const sigMatch = url.match(/x-signature=([^&]+)/)
+  if (!sigMatch) return null
+  const signature = sigMatch[1]
+  for (const [key, data] of imageDb) {
+    if (data.no_watermark_url.includes(signature)) {
+      return key
     }
-  })
-  containers.sort((a, b) => {
-    const ra = a.getBoundingClientRect()
-    const rb = b.getBoundingClientRect()
-    return ra.top - rb.top || ra.left - rb.left
-  })
-  return containers
+  }
+  return null
 }
 
 // 注入所有图片的下载按钮
@@ -396,26 +387,25 @@ let _retryTimer = null
 function injectAllImageButtons() {
   if (!document.body) return
   
-  // 清理浮动按钮
   document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
   
-  const unprocessed = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
-  if (!unprocessed.length) return
-  
-  // 找尚未加按钮的容器
-  const containers = findUninjectedImageContainers()
-  if (!containers.length) return
-  
-  const count = Math.min(containers.length, unprocessed.length)
-  for (let i = 0; i < count; i++) {
-    const key = unprocessed[i]
-    if (processedImageKeys.has(key)) continue
-    processedImageKeys.add(key)
-    const el = containers[i]
-    if (!el || !el.style) continue
-    el.style.position = (getComputedStyle(el).position === 'static') ? 'relative' : el.style.position
-    addDownloadBtn(el, imageDb.get(key), key)
-  }
+  // 按 URL 签名精确匹配，不依赖顺序
+  document.querySelectorAll('source[srcset*="signature"], img[src*="signature"]').forEach(el => {
+    const url = el.srcset || el.src || ''
+    const key = findKeyByUrlSignature(url)
+    if (!key || processedImageKeys.has(key)) return
+    
+    let p = el.parentElement
+    for (let i = 0; i < 3 && p && p !== document.body; i++, p = p.parentElement) {
+      if (p.offsetWidth < 80 || p.offsetHeight < 80) continue
+      if (p.offsetWidth > 600) continue
+      if (p.querySelector('.__df-btn')) break
+      processedImageKeys.add(key)
+      if (getComputedStyle(p).position === 'static') p.style.position = 'relative'
+      addDownloadBtn(p, imageDb.get(key), key)
+      break
+    }
+  })
 }
 
 // 持续重试直到所有图片都有按钮
@@ -543,6 +533,7 @@ function tryInjectVideo(el) {
 }
 
 function showToast(msg, type) {
+  if (!document.body) return
   const t = document.createElement('div')
   t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:' + (type === 'ok' ? '#10b981' : '#ef4444') + ';color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:100001;font-family:system-ui;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:__df_fade 2.5s ease forwards'
   t.textContent = (type === 'ok' ? '✓ ' : '⚠️ ') + msg
