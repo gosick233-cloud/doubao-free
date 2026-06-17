@@ -119,7 +119,7 @@ function extractImages(creations) {
   }
   // 新图片加入后立即尝试注入按钮
   if (newImages.length) {
-    setTimeout(() => injectButtonsForNewImages(newImages), 500)
+    setTimeout(injectAllImageButtons, 500)
   }
 }
 
@@ -368,111 +368,88 @@ function ensureRelative(el) {
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
 }
 
-// 从任意元素的 style/background 中提取 rc_gen_image key
-function extractFileKeyFromStyle(el) {
-  const bg = getComputedStyle(el).backgroundImage || ''
-  const m = bg.match(/rc_gen_image\/([^?"')]+)/)
-  if (m) return m[1]
-  // 也检查 background 内联样式
-  const inline = el.style?.backgroundImage || el.style?.background || ''
-  const m2 = String(inline).match(/rc_gen_image\/([^?"')]+)/)
-  return m2 ? m2[1] : null
-}
-
-// 在 DOM 中找到所有包含 rc_gen_image 的元素（img、div背景、picture等）
-function findImageElements() {
-  const found = []
-  // <img> 标签
-  document.querySelectorAll('img[src*="rc_gen_image"]').forEach(el => {
-    found.push({ el, key: extractFileKey(el.src) })
+// 找到所有图片容器（通过定位"AI生成"标签或图片区域）
+function findImageSlots() {
+  const slots = []
+  // 方法1: 找包含"AI生成"文本的元素
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => node.nodeValue?.includes('AI生成') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
   })
-  // <div>/<span> 等带 background-image 的元素
-  document.querySelectorAll('*').forEach(el => {
-    if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return
-    if (found.some(f => f.el === el)) return
-    const key = extractFileKeyFromStyle(el)
-    if (key) found.push({ el, key })
-  })
-  // <picture> 中 <source> 的 srcset
-  document.querySelectorAll('picture source[srcset*="rc_gen_image"]').forEach(el => {
-    const m = (el.srcset || '').match(/rc_gen_image\/([^?\s]+)/)
-    if (m) found.push({ el, key: m[1] })
-  })
-  return found
-}
-
-// 为指定图片列表注入下载按钮
-function injectButtonsForNewImages(newImages) {
-  if (!document.body) return
-  
-  // 1. 全面扫描 DOM 中所有含 rc_gen_image 的元素
-  const allElements = findImageElements()
-  
-  // 2. 遍历 imageDb 中所有未处理的图片，找匹配的 DOM 元素
-  const imageArray = newImages && newImages.length ? newImages : []
-  const keysToProcess = imageArray.length
-    ? imageArray.filter(i => !processedImageKeys.has(i.key)).map(i => i.key)
-    : [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
-  
-  const allUnprocessedKeys = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
-  
-  // 对每个元素先检查
-  for (const { el, key } of allElements) {
-    if (!imageDb.has(key)) continue
-    if (processedImageKeys.has(key)) continue
-    processedImageKeys.add(key)
-    el.__df_img = true
-    const data = imageDb.get(key)
-    const container = findContainer(el)
-    ensureRelative(container)
-    addDownloadBtn(container, data, key)
-  }
-  
-  // 3. 对仍未被处理的图片，在消息区域创建按钮
-  if (allUnprocessedKeys.length) {
-    // 找到包含图片的消息区域
-    const imageBlocks = document.querySelectorAll('[class*="message"] [class*="block-creation"], [class*="message"] [class*="creation-block"], [class*="message"] [class*="image"]')
-    
-    // 如果找到的消息块数量和图片数量一致，一一对应加按钮
-    if (imageBlocks.length >= allUnprocessedKeys.length) {
-      allUnprocessedKeys.forEach((key, i) => {
-        if (processedImageKeys.has(key)) return
-        processedImageKeys.add(key)
-        const data = imageDb.get(key)
-        const block = imageBlocks[i] || imageBlocks[imageBlocks.length - 1]
-        const container = findContainer(block)
-        ensureRelative(container)
-        addDownloadBtn(container, data, key)
-      })
-    } else {
-      // 找消息容器，在末尾统一加按钮
-      const msgContainers = []
-      document.querySelectorAll('[class*="message"]').forEach(el => {
-        if (el.querySelector('[class*="creation"], [class*="image"]')) {
-          msgContainers.push(el)
-        }
-      })
-      
-      if (msgContainers.length) {
-        allUnprocessedKeys.forEach((key, i) => {
-          if (processedImageKeys.has(key)) return
-          processedImageKeys.add(key)
-          const data = imageDb.get(key)
-          const container = findContainer(msgContainers[0])
-          ensureRelative(container)
-          // 多图：按钮排成行
-          addDownloadBtn(container, data, key)
-        })
-      } else {
-        // 4. 最终还是找不到 → 浮动按钮
-        allUnprocessedKeys.forEach((key) => {
-          if (processedImageKeys.has(key)) return
-          processedImageKeys.add(key)
-          addFloatingDownloadBtn(imageDb.get(key), key)
-        })
-      }
+  while (walker.nextNode()) {
+    const parent = walker.currentNode.parentElement
+    if (parent && !slots.includes(parent)) {
+      slots.push(parent)
     }
   }
+  return slots
+}
+
+// 找到图片容器所在的父级消息区域
+function findMessageParent(el) {
+  let cur = el
+  for (let i = 0; i < 10 && cur && cur !== document.body; i++) {
+    const cls = cur.className || ''
+    if (typeof cls === 'string' && (cls.includes('message') || cls.includes('Message'))) return cur
+    cur = cur.parentElement
+  }
+  return null
+}
+
+// 注入所有图片的下载按钮
+function injectAllImageButtons() {
+  if (!document.body) return
+  const unprocessed = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
+  if (!unprocessed.length) return
+  
+  // 1. 通过"AI生成"标签定位每张图片的容器
+  const slots = findImageSlots()
+  
+  if (slots.length >= unprocessed.length) {
+    // 一一对应，每张图右下角加按钮
+    unprocessed.forEach((key, i) => {
+      processedImageKeys.add(key)
+      const slot = slots[i]
+      const container = slot.parentElement || slot
+      ensureRelative(container)
+      addDownloadBtn(container, imageDb.get(key), key)
+    })
+    return
+  }
+  
+  // 2. 找不到"AI生成"标签时：通过 rc_gen_image URL 找元素
+  document.querySelectorAll('*').forEach(el => {
+    const elStr = el.outerHTML || el.innerHTML || ''
+    // 检查 style、src、data-src、background 等属性
+    const attrs = [el.src, el.getAttribute('src'), el.getAttribute('data-src'),
+      el.style?.backgroundImage, el.style?.background].filter(Boolean).join(' ')
+    if (!attrs.includes('rc_gen_image')) {
+      // 也检查内联 style background-image
+      const inline = el.getAttribute?.('style') || ''
+      if (!inline.includes('rc_gen_image')) return
+    }
+    
+    // 提取 key
+    let key = null
+    const m = attrs.match(/rc_gen_image\/([^?"')\]\s]+)/)
+    if (m) key = m[1]
+    if (!key) {
+      const m2 = (el.getAttribute?.('style') || '').match(/rc_gen_image\/([^?"')\]\s]+)/)
+      if (m2) key = m2[1]
+    }
+    if (!key || !imageDb.has(key) || processedImageKeys.has(key)) return
+    
+    processedImageKeys.add(key)
+    const container = findContainer(el)
+    ensureRelative(container)
+    addDownloadBtn(container, imageDb.get(key), key)
+  })
+  
+  // 3. 仍未处理的生成浮动按钮
+  imageDb.forEach((data, key) => {
+    if (processedImageKeys.has(key)) return
+    processedImageKeys.add(key)
+    addFloatingDownloadBtn(data, key)
+  })
 }
 
 // 添加下载按钮到容器
@@ -601,19 +578,10 @@ function showToast(msg, type) {
 // ============================================================
 function scanDOM() {
   try {
-    // 扫描所有未处理的图片
-    const allUnprocessed = []
-    imageDb.forEach((data, key) => {
-      if (!processedImageKeys.has(key)) {
-        allUnprocessed.push({ key, data })
-      }
-    })
-    if (allUnprocessed.length) {
-      injectButtonsForNewImages(allUnprocessed)
-    }
+    // 所有未处理的图片
+    injectAllImageButtons()
     document.querySelectorAll('img[src*="rc_gen_image"]').forEach(tryInjectImage)
     document.querySelectorAll('[class*="block-video"]').forEach(tryInjectVideo)
-    // 二次扫描等待中的视频
     document.querySelectorAll('[class*="block-video"]').forEach(el => {
       if (el.__df_video) return
       if (el.__df_waitMid && videoDb.has(el.__df_waitMid)) {
