@@ -119,7 +119,7 @@ function extractImages(creations) {
   }
   // 新图片加入后立即尝试注入按钮
   if (newImages.length) {
-    setTimeout(injectAllImageButtons, 500)
+    setTimeout(scheduleInjectAllImageButtons, 500)
   }
 }
 
@@ -368,92 +368,87 @@ function ensureRelative(el) {
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
 }
 
-// 找到所有图片容器（通过定位"AI生成"标签或图片区域）
-function findImageSlots() {
-  const slots = []
-  // 方法1: 找包含"AI生成"文本的元素
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => node.nodeValue?.includes('AI生成') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
-  })
-  while (walker.nextNode()) {
-    const parent = walker.currentNode.parentElement
-    if (parent && !slots.includes(parent)) {
-      slots.push(parent)
-    }
-  }
-  return slots
-}
-
-// 找到图片容器所在的父级消息区域
-function findMessageParent(el) {
-  let cur = el
-  for (let i = 0; i < 10 && cur && cur !== document.body; i++) {
-    const cls = cur.className || ''
-    if (typeof cls === 'string' && (cls.includes('message') || cls.includes('Message'))) return cur
-    cur = cur.parentElement
-  }
-  return null
-}
-
 // 注入所有图片的下载按钮
 function injectAllImageButtons() {
   if (!document.body) return
-  const unprocessed = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
+  
+  // 每次运行先清理之前残留的浮动面板和浮动按钮
+  document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
+  
+  let unprocessed = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
   if (!unprocessed.length) return
   
-  // 1. 通过"AI生成"标签定位每张图片的容器
-  const slots = findImageSlots()
+  // 方法1: 找 source[srcset] 或 img 包含 signature（CDN特征）
+  const parents = []
+  document.querySelectorAll('source[srcset*="signature"], img[src*="signature"]').forEach(el => {
+    let p = el.parentElement
+    for (let i = 0; i < 3 && p && p !== document.body; i++, p = p.parentElement) {
+      // 找 80~500px 的方块元素
+      if (p.offsetWidth >= 80 && p.offsetHeight >= 80 && p.offsetWidth <= 500) {
+        if (!parents.includes(p)) parents.push(p)
+        break
+      }
+    }
+  })
   
-  if (slots.length >= unprocessed.length) {
-    // 一一对应，每张图右下角加按钮
-    unprocessed.forEach((key, i) => {
-      processedImageKeys.add(key)
-      const slot = slots[i]
-      const container = slot.parentElement || slot
-      ensureRelative(container)
-      addDownloadBtn(container, imageDb.get(key), key)
-    })
-    return
+  // 按位置排序
+  parents.sort((a, b) => {
+    const ra = a.getBoundingClientRect()
+    const rb = b.getBoundingClientRect()
+    return ra.top - rb.top || ra.left - rb.left
+  })
+  
+  // 给每个容器加按钮
+  const matchCount = Math.min(parents.length, unprocessed.length)
+  for (let i = 0; i < matchCount; i++) {
+    const key = unprocessed[i]
+    if (processedImageKeys.has(key)) continue
+    processedImageKeys.add(key)
+    const el = parents[i]
+    if (!el || !el.style) continue
+    el.style.position = (getComputedStyle(el).position === 'static') ? 'relative' : el.style.position
+    addDownloadBtn(el, imageDb.get(key), key)
   }
   
-  // 2. 找不到"AI生成"标签时：通过 rc_gen_image URL 找元素
-  document.querySelectorAll('*').forEach(el => {
-    const elStr = el.outerHTML || el.innerHTML || ''
-    // 检查 style、src、data-src、background 等属性
-    const attrs = [el.src, el.getAttribute('src'), el.getAttribute('data-src'),
-      el.style?.backgroundImage, el.style?.background].filter(Boolean).join(' ')
-    if (!attrs.includes('rc_gen_image')) {
-      // 也检查内联 style background-image
-      const inline = el.getAttribute?.('style') || ''
-      if (!inline.includes('rc_gen_image')) return
-    }
-    
-    // 提取 key
-    let key = null
-    const m = attrs.match(/rc_gen_image\/([^?"')\]\s]+)/)
-    if (m) key = m[1]
-    if (!key) {
-      const m2 = (el.getAttribute?.('style') || '').match(/rc_gen_image\/([^?"')\]\s]+)/)
-      if (m2) key = m2[1]
-    }
-    if (!key || !imageDb.has(key) || processedImageKeys.has(key)) return
-    
-    processedImageKeys.add(key)
-    const container = findContainer(el)
-    ensureRelative(container)
-    addDownloadBtn(container, imageDb.get(key), key)
-  })
+  // 清除旧的浮动按钮和面板
+  document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
   
-  // 3. 仍未处理的生成浮动按钮
-  imageDb.forEach((data, key) => {
-    if (processedImageKeys.has(key)) return
+  // 兜底：直接在 body 末尾加按钮面板
+  const remaining = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
+  if (!remaining.length) return
+  
+  // 移除旧面板
+  document.querySelectorAll('#__df-panel').forEach(e => e.remove())
+  
+  const panel = document.createElement('div')
+  panel.id = '__df-panel'
+  panel.style.cssText = 'position:fixed;bottom:60px;right:10px;z-index:999999;display:flex;gap:4px;padding:6px;background:rgba(0,0,0,0.7);border-radius:8px'
+  remaining.forEach((key, i) => {
     processedImageKeys.add(key)
-    addFloatingDownloadBtn(data, key)
+    const btn = document.createElement('button')
+    btn.textContent = '图' + (i + 1)
+    btn.style.cssText = 'padding:6px 12px;background:#fff;color:#000;border:none;border-radius:4px;font-size:13px;cursor:pointer'
+    btn.onclick = () => {
+      post({ type: '__DF_download', url: imageDb.get(key).no_watermark_url,
+        filename: 'doubao_img_' + Date.now() + '.png',
+        __cbId: Date.now() + '_' + Math.random().toString(36).slice(2, 6) })
+    }
+    panel.appendChild(btn)
   })
+  document.body.appendChild(panel)
+}
+
+// 带延迟重试的注入
+function scheduleInjectAllImageButtons() {
+  setTimeout(injectAllImageButtons, 500)
+  setTimeout(injectAllImageButtons, 1500)
+  setTimeout(injectAllImageButtons, 3000)
+  setTimeout(injectAllImageButtons, 6000)
 }
 
 // 添加下载按钮到容器
 function addDownloadBtn(container, data, key) {
+  if (!container || !container.querySelector) return
   if (container.querySelector(`.__df-btn[data-key="${CSS.escape(key)}"]`)) return
   const btn = document.createElement('button')
   btn.className = '__df-btn'
@@ -579,7 +574,7 @@ function showToast(msg, type) {
 function scanDOM() {
   try {
     // 所有未处理的图片
-    injectAllImageButtons()
+    scheduleInjectAllImageButtons()
     document.querySelectorAll('img[src*="rc_gen_image"]').forEach(tryInjectImage)
     document.querySelectorAll('[class*="block-video"]').forEach(tryInjectVideo)
     document.querySelectorAll('[class*="block-video"]').forEach(el => {
