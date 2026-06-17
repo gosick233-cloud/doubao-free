@@ -53,9 +53,19 @@ document.addEventListener('DOMContentLoaded', function () {
   })
 
   // ============================================================
-  //  定时刷新统计信息
+  //  版本更新检查
   // ============================================================
-  // 通过 content script 获取数据（但因 MAIN world 限制，
-  // 这里简化：只显示状态，不追踪实时数量）
-  // 后续版本可扩展
+  chrome.storage.local.get('df_update', function (r) {
+    const update = r.df_update
+    if (update && update.version) {
+      const notice = document.getElementById('updateNotice')
+      const link = document.getElementById('updateLink')
+      const text = document.getElementById('updateText')
+      if (notice && link && text) {
+        text.textContent = 'v' + update.version + ' 可用 — 点击下载'
+        link.href = update.url
+        notice.style.display = 'block'
+      }
+    }
+  })
 })

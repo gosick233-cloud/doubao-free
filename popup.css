@@ -160,6 +160,36 @@ body {
 }
 .help-card li { margin-bottom: 2px; }
 
+/* 更新通知 */
+.update-card {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+}
+.update-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: #e74c3c;
+  font-size: 13px;
+  font-weight: 500;
+}
+.update-link:hover {
+  color: #c0392b;
+}
+.update-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e74c3c;
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* 底部 */
 .footer {
   text-align: center;

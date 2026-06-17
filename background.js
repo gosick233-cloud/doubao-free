@@ -67,12 +67,50 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return true
   }
 
+  // --- 检查更新 ---
+  if (msg.type === '__DF_CHECK_UPDATE') {
+    checkUpdate().then(sendResponse)
+    return true
+  }
+
   // --- 获取视频分享URL（备用）---
   if (msg.type === '__DF_getVideoShareUrl') {
     getVideoShareUrl(msg.vid).then(sendResponse)
     return true
   }
 })
+
+// ============================================================
+//  版本更新检查
+// ============================================================
+const CURRENT_VERSION = chrome.runtime.getManifest().version
+const REPO = 'gosick233-cloud/doubao-free'
+
+async function checkUpdate() {
+  try {
+    const resp = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
+    const data = await resp.json()
+    const latest = (data.tag_name || '').replace(/^v/, '')
+    if (latest && latest !== CURRENT_VERSION) {
+      // 有更新，设置角标
+      chrome.action.setBadgeText({ text: 'NEW' })
+      chrome.action.setBadgeBackgroundColor({ color: '#e74c3c' })
+      await chrome.storage.local.set({
+        df_update: { version: latest, url: data.html_url, notes: (data.body || '').slice(0, 300) }
+      })
+      return { hasUpdate: true, latest, url: data.html_url }
+    }
+    await chrome.storage.local.set({ df_update: null })
+    chrome.action.setBadgeText({ text: '' })
+    return { hasUpdate: false }
+  } catch {
+    return { hasUpdate: false, error: 'check failed' }
+  }
+}
+
+// 启动和每小时检查一次
+checkUpdate()
+setInterval(checkUpdate, 3600000)
 
 // ============================================================
 //  备用：通过豆包分享API获取视频URL
