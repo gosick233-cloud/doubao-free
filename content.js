@@ -368,83 +368,71 @@ function ensureRelative(el) {
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
 }
 
-// 注入所有图片的下载按钮
-function injectAllImageButtons() {
-  if (!document.body) return
-  
-  // 每次运行先清理之前残留的浮动面板和浮动按钮
-  document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
-  
-  let unprocessed = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
-  if (!unprocessed.length) return
-  
-  // 方法1: 找 source[srcset] 或 img 包含 signature（CDN特征）
-  const parents = []
+// 找到还没加过按钮的图片容器（跳过已有按钮的）
+function findUninjectedImageContainers() {
+  const containers = []
   document.querySelectorAll('source[srcset*="signature"], img[src*="signature"]').forEach(el => {
     let p = el.parentElement
     for (let i = 0; i < 3 && p && p !== document.body; i++, p = p.parentElement) {
-      // 找 80~500px 的方块元素
-      if (p.offsetWidth >= 80 && p.offsetHeight >= 80 && p.offsetWidth <= 500) {
-        if (!parents.includes(p)) parents.push(p)
-        break
-      }
+      if (p.offsetWidth < 80 || p.offsetHeight < 80 || p.offsetWidth > 500) continue
+      if (containers.includes(p)) break
+      // 跳过已经有按钮的容器
+      if (p.querySelector('.__df-btn')) break
+      containers.push(p)
+      break
     }
   })
-  
-  // 按位置排序
-  parents.sort((a, b) => {
+  containers.sort((a, b) => {
     const ra = a.getBoundingClientRect()
     const rb = b.getBoundingClientRect()
     return ra.top - rb.top || ra.left - rb.left
   })
+  return containers
+}
+
+// 注入所有图片的下载按钮
+let _retryTimer = null
+
+function injectAllImageButtons() {
+  if (!document.body) return
   
-  // 给每个容器加按钮
-  const matchCount = Math.min(parents.length, unprocessed.length)
-  for (let i = 0; i < matchCount; i++) {
+  // 清理浮动按钮
+  document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
+  
+  const unprocessed = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
+  if (!unprocessed.length) return
+  
+  // 找尚未加按钮的容器
+  const containers = findUninjectedImageContainers()
+  if (!containers.length) return
+  
+  const count = Math.min(containers.length, unprocessed.length)
+  for (let i = 0; i < count; i++) {
     const key = unprocessed[i]
     if (processedImageKeys.has(key)) continue
     processedImageKeys.add(key)
-    const el = parents[i]
+    const el = containers[i]
     if (!el || !el.style) continue
     el.style.position = (getComputedStyle(el).position === 'static') ? 'relative' : el.style.position
     addDownloadBtn(el, imageDb.get(key), key)
   }
-  
-  // 清除旧的浮动按钮和面板
-  document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
-  
-  // 兜底：直接在 body 末尾加按钮面板
-  const remaining = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
-  if (!remaining.length) return
-  
-  // 移除旧面板
-  document.querySelectorAll('#__df-panel').forEach(e => e.remove())
-  
-  const panel = document.createElement('div')
-  panel.id = '__df-panel'
-  panel.style.cssText = 'position:fixed;bottom:60px;right:10px;z-index:999999;display:flex;gap:4px;padding:6px;background:rgba(0,0,0,0.7);border-radius:8px'
-  remaining.forEach((key, i) => {
-    processedImageKeys.add(key)
-    const btn = document.createElement('button')
-    btn.textContent = '图' + (i + 1)
-    btn.style.cssText = 'padding:6px 12px;background:#fff;color:#000;border:none;border-radius:4px;font-size:13px;cursor:pointer'
-    btn.onclick = () => {
-      post({ type: '__DF_download', url: imageDb.get(key).no_watermark_url,
-        filename: 'doubao_img_' + Date.now() + '.png',
-        __cbId: Date.now() + '_' + Math.random().toString(36).slice(2, 6) })
-    }
-    panel.appendChild(btn)
-  })
-  document.body.appendChild(panel)
 }
 
-// 带延迟重试的注入
+// 持续重试直到所有图片都有按钮
 function scheduleInjectAllImageButtons() {
-  setTimeout(injectAllImageButtons, 500)
-  setTimeout(injectAllImageButtons, 1500)
-  setTimeout(injectAllImageButtons, 3000)
-  setTimeout(injectAllImageButtons, 6000)
+  if (_retryTimer) clearTimeout(_retryTimer)
+  
+  const doTry = (attempt) => {
+    injectAllImageButtons()
+    const remaining = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
+    if (remaining.length && attempt < 20) {
+      _retryTimer = setTimeout(() => doTry(attempt + 1), 1500)
+    }
+  }
+  doTry(0)
 }
+
+
 
 // 添加下载按钮到容器
 function addDownloadBtn(container, data, key) {
