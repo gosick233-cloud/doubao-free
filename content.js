@@ -387,8 +387,6 @@ let _retryTimer = null
 function injectAllImageButtons() {
   if (!document.body) return
   
-  document.querySelectorAll('#__df-panel, .__df-float-btn').forEach(e => e.remove())
-  
   // 按 URL 签名精确匹配，不依赖顺序
   document.querySelectorAll('source[srcset*="signature"], img[src*="signature"]').forEach(el => {
     const url = el.srcset || el.src || ''
@@ -443,23 +441,6 @@ function addDownloadBtn(container, data, key) {
 }
 
 // 浮动下载按钮（兜底）
-function addFloatingDownloadBtn(data, key) {
-  if (document.querySelector(`.__df-float-btn[data-key="${CSS.escape(key)}"]`)) return
-  const btn = document.createElement('button')
-  btn.className = '__df-btn __df-float-btn'
-  btn.setAttribute('data-key', key)
-  btn.style.cssText = 'position:fixed!important;bottom:80px!important;right:20px!important;z-index:100000!important'
-  btn.innerHTML = SVG_DL + ' 下载图片'
-  btn.onclick = e => {
-    e.stopPropagation()
-    btn.disabled = true; btn.textContent = '下载中…'
-    const fn = 'doubao_img_' + Date.now() + '.png'
-    post({ type: '__DF_download', url: data.no_watermark_url, filename: fn, __cbId: Date.now() + '_' + Math.random().toString(36).slice(2, 6) })
-    setTimeout(() => { btn.remove() }, 2000)
-  }
-  document.body.appendChild(btn)
-}
-
 // 图片下载按钮（旧的，保留兼容）
 function tryInjectImage(imgEl) {
   if (imgEl.__df_img) return
