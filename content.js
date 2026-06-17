@@ -102,6 +102,8 @@ function patchDuration(obj, depth = 0) {
 //  提取
 // ============================================================
 
+// 已弃用：按钮的 key 现在直接从容器内 DOM 提取，不再按下标顺序配对
+// 保留变量声明仅为向后兼容，实际已无引用
 let processedImageKeys = new Set()
 
 function extractImages(creations) {
@@ -368,53 +370,67 @@ function ensureRelative(el) {
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
 }
 
-// 通过 URL 签名在 imageDb 中查找匹配的 key
-function findKeyByUrlSignature(url) {
-  const sigMatch = url.match(/x-signature=([^&]+)/)
-  if (!sigMatch) return null
-  const signature = sigMatch[1]
-  for (const [key, data] of imageDb) {
-    if (data.no_watermark_url.includes(signature)) {
-      return key
-    }
-  }
-  return null
-}
-
 // 注入所有图片的下载按钮
 let _retryTimer = null
 
 function injectAllImageButtons() {
   if (!document.body) return
-  
-  // 按 URL 签名精确匹配，不依赖顺序
-  document.querySelectorAll('source[srcset*="signature"], img[src*="signature"]').forEach(el => {
-    const url = el.srcset || el.src || ''
-    const key = findKeyByUrlSignature(url)
-    if (!key || processedImageKeys.has(key)) return
-    
-    let p = el.parentElement
-    for (let i = 0; i < 3 && p && p !== document.body; i++, p = p.parentElement) {
-      if (p.offsetWidth < 80 || p.offsetHeight < 80) continue
-      if (p.offsetWidth > 600) continue
-      if (p.querySelector('.__df-btn')) break
-      processedImageKeys.add(key)
-      if (getComputedStyle(p).position === 'static') p.style.position = 'relative'
-      addDownloadBtn(p, imageDb.get(key), key)
+
+  // 找所有带 signature 的 source，取容器
+  const containers = []
+  document.querySelectorAll('source[srcset*="signature"]').forEach(el => {
+    let c = el.parentElement
+    for (let i = 0; i < 3 && c && c !== document.body; i++) {
+      if (c.offsetWidth < 80 || c.offsetHeight < 80 || c.offsetWidth > 600) { c = c.parentElement; continue }
+      if (containers.includes(c)) break
+      // 检查容器内的实际 img（排除 avatar/icon）
+      const img = c.querySelector('img:not([src*="avatar"]):not([src*="doubao_avatar"]):not([src*="intro."])')
+      if (!img || img.offsetWidth < 50) { c = c.parentElement; continue }
+      containers.push(c)
       break
     }
   })
+
+  if (!containers.length) return
+
+  // 关键修复：按钮的 key 直接从容器内部 DOM 提取，不再按下标顺序配对
+  // 这样多轮生图 + 刷新后，按钮与图片仍然一一对应
+  for (const c of containers) {
+    if (!c || !c.style) continue
+
+    // 从容器内 <source srcset> 或 <img src> 提取 fileKey
+    const sourceEl = c.querySelector('source[srcset*="rc_gen_image"]')
+    const imgEl    = c.querySelector('img[src*="rc_gen_image"]')
+    const url      = (sourceEl && sourceEl.srcset) || (imgEl && imgEl.src) || ''
+    const key      = extractFileKey(url)
+    if (!key) continue
+
+    // 校验已有按钮：若 data-key 与当前 DOM 不符，说明配错了，删掉重建
+    const existing = c.querySelector('.__df-btn[data-key]')
+    if (existing) {
+      if (existing.getAttribute('data-key') === key) continue  // 已正确绑定
+      existing.remove()                                        // 错位，重建
+    }
+
+    const data = imageDb.get(key)
+    if (!data) continue   // 数据还没到，等下一轮重试
+
+    if (getComputedStyle(c).position === 'static') c.style.position = 'relative'
+    addDownloadBtn(c, data, key)
+  }
 }
 
-// 持续重试直到所有图片都有按钮
+// 持续重试直到所有图片容器都有按钮
 function scheduleInjectAllImageButtons() {
   if (_retryTimer) clearTimeout(_retryTimer)
   
   const doTry = (attempt) => {
     injectAllImageButtons()
-    const remaining = [...imageDb.keys()].filter(k => !processedImageKeys.has(k))
-    if (remaining.length && attempt < 20) {
-      _retryTimer = setTimeout(() => doTry(attempt + 1), 1500)
+    // 检查是否所有 source 都有按钮了
+    const total = document.querySelectorAll('source[srcset*="signature"]').length
+    const buttoned = document.querySelectorAll('.__df-btn[data-key]').length
+    if (total > buttoned && attempt < 30) {
+      _retryTimer = setTimeout(() => doTry(attempt + 1), 1000)
     }
   }
   doTry(0)
@@ -535,7 +551,10 @@ function scanDOM() {
   try {
     // 所有未处理的图片
     scheduleInjectAllImageButtons()
-    document.querySelectorAll('img[src*="rc_gen_image"]').forEach(tryInjectImage)
+    // 已弃用：tryInjectImage 通过 findContainer 向上冒泡找容器，
+    // 会错误匹配到消息级 wrapper，导致按钮浮到对话右下角。
+    // 改由 scheduleInjectAllImageButtons() 统一通过 source[srcset*="signature"] 精确注入。
+    // document.querySelectorAll('img[src*="rc_gen_image"]').forEach(tryInjectImage)
     document.querySelectorAll('[class*="block-video"]').forEach(tryInjectVideo)
     document.querySelectorAll('[class*="block-video"]').forEach(el => {
       if (el.__df_video) return
