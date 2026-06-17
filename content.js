@@ -102,16 +102,24 @@ function patchDuration(obj, depth = 0) {
 //  提取
 // ============================================================
 
+let processedImageKeys = new Set()
+
 function extractImages(creations) {
   if (!Array.isArray(creations)) return
+  let newImages = []
   for (const cr of creations) {
     const raw = cr?.image?.image_ori_raw
     if (raw?.url) {
       const key = extractFileKey(raw.url)
       if (key && !imageDb.has(key)) {
-        imageDb.set(key, { no_watermark_url: raw.url, width: raw.width, height: raw.height })
+        imageDb.set(key, { no_watermark_url: raw.url, width: raw.width, height: raw.height, id: cr.id || key })
+        newImages.push({ key, data: imageDb.get(key) })
       }
     }
+  }
+  // 新图片加入后立即尝试注入按钮
+  if (newImages.length) {
+    setTimeout(() => injectButtonsForNewImages(newImages), 500)
   }
 }
 
@@ -360,7 +368,106 @@ function ensureRelative(el) {
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
 }
 
-// 图片下载按钮
+// 为指定图片列表注入下载按钮
+function injectButtonsForNewImages(newImages) {
+  if (!document.body) return
+  
+  // 1. 先在 DOM 中找匹配的 img 元素
+  document.querySelectorAll('img').forEach(imgEl => {
+    if (imgEl.__df_img) return
+    const src = imgEl.src || ''
+    const key = extractFileKey(src)
+    if (!key || !imageDb.has(key)) return
+    if (processedImageKeys.has(key)) return
+    
+    imgEl.__df_img = true
+    processedImageKeys.add(key)
+    const data = imageDb.get(key)
+    const container = findContainer(imgEl)
+    ensureRelative(container)
+    addDownloadBtn(container, data, key)
+  })
+  
+  // 2. 对于还没找到位置的新图片（DOM 中无匹配 img），
+  //    扫描找包含 creation 的消息区域，在区域底部加按钮
+  for (const { key, data } of newImages) {
+    if (processedImageKeys.has(key)) continue
+    processedImageKeys.add(key)
+    
+    // 在页面中找所有包含图片的消息块，尝试匹配
+    let found = false
+    document.querySelectorAll('[class*="message"], [class*="block-creation"], [class*="creation"]').forEach(block => {
+      if (found) return
+      const imgs = block.querySelectorAll('img[src*="rc_gen_image"]')
+      for (const img of imgs) {
+        if (extractFileKey(img.src) === key) {
+          img.__df_img = true
+          const container = findContainer(img)
+          ensureRelative(container)
+          addDownloadBtn(container, data, key)
+          found = true
+          break
+        }
+      }
+    })
+    
+    // 3. 最后兜底：在所有图片消息区域的末尾加按钮
+    if (!found) {
+      document.querySelectorAll('[class*="message"]').forEach(msg => {
+        if (found) return
+        const imgs = msg.querySelectorAll('img[src*="rc_gen_image"]')
+        if (imgs.length > 0) {
+          const container = findContainer(imgs[0])
+          ensureRelative(container)
+          addDownloadBtn(container, data, key)
+          found = true
+        }
+      })
+    }
+    
+    // 4. 最终兜底：在页面右下角浮动显示
+    if (!found) {
+      addFloatingDownloadBtn(data, key)
+    }
+  }
+}
+
+// 添加下载按钮到容器
+function addDownloadBtn(container, data, key) {
+  if (container.querySelector(`.__df-btn[data-key="${CSS.escape(key)}"]`)) return
+  const btn = document.createElement('button')
+  btn.className = '__df-btn'
+  btn.setAttribute('data-key', key)
+  btn.innerHTML = SVG_DL + ' 下载原图'
+  btn.onclick = e => {
+    e.stopPropagation()
+    btn.disabled = true; btn.textContent = '下载中…'
+    const fn = 'doubao_img_' + (data.width && data.height ? data.width + 'x' + data.height + '_' : '') + Date.now() + '.png'
+    post({ type: '__DF_download', url: data.no_watermark_url, filename: fn, __cbId: Date.now() + '_' + Math.random().toString(36).slice(2, 6) })
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = SVG_DL + ' 下载原图' }, 3000)
+  }
+  container.appendChild(btn)
+}
+
+// 浮动下载按钮（兜底）
+function addFloatingDownloadBtn(data, key) {
+  if (document.querySelector(`.__df-float-btn[data-key="${CSS.escape(key)}"]`)) return
+  const btn = document.createElement('button')
+  btn.className = '__df-btn __df-float-btn'
+  btn.setAttribute('data-key', key)
+  btn.style.cssText = 'position:fixed!important;bottom:80px!important;right:20px!important;z-index:100000!important'
+  btn.innerHTML = SVG_DL + ' 下载图片'
+  btn.onclick = e => {
+    e.stopPropagation()
+    btn.disabled = true; btn.textContent = '下载中…'
+    const fn = 'doubao_img_' + Date.now() + '.png'
+    post({ type: '__DF_download', url: data.no_watermark_url, filename: fn, __cbId: Date.now() + '_' + Math.random().toString(36).slice(2, 6) })
+    setTimeout(() => { btn.remove() }, 2000)
+  }
+  document.body.appendChild(btn)
+}
+
+// 图片下载按钮（旧的，保留兼容）
 function tryInjectImage(imgEl) {
   if (imgEl.__df_img) return
   imgEl.__df_img = true
@@ -371,18 +478,7 @@ function tryInjectImage(imgEl) {
 
   const container = findContainer(imgEl)
   ensureRelative(container)
-
-  const btn = document.createElement('button')
-  btn.className = '__df-btn'
-  btn.innerHTML = SVG_DL + ' 下载原图'
-  btn.onclick = e => {
-    e.stopPropagation()
-    btn.disabled = true; btn.textContent = '下载中…'
-    const fn = 'doubao_img_' + (data.width && data.height ? data.width + 'x' + data.height + '_' : '') + Date.now() + '.png'
-    post({ type: '__DF_download', url: data.no_watermark_url, filename: fn, __cbId: Date.now() + '_' + Math.random().toString(36).slice(2, 6) })
-    // forwarder会返回结果，通过消息监听处理
-  }
-  container.appendChild(btn)
+  addDownloadBtn(container, data, key)
 }
 
 // 视频下载按钮
@@ -462,6 +558,16 @@ function showToast(msg, type) {
 // ============================================================
 function scanDOM() {
   try {
+    // 扫描所有未处理的图片
+    const allUnprocessed = []
+    imageDb.forEach((data, key) => {
+      if (!processedImageKeys.has(key)) {
+        allUnprocessed.push({ key, data })
+      }
+    })
+    if (allUnprocessed.length) {
+      injectButtonsForNewImages(allUnprocessed)
+    }
     document.querySelectorAll('img[src*="rc_gen_image"]').forEach(tryInjectImage)
     document.querySelectorAll('[class*="block-video"]').forEach(tryInjectVideo)
     // 二次扫描等待中的视频
